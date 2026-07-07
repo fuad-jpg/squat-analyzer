@@ -6,7 +6,8 @@ def calculate_angle(a, b, c):
     a, b, c = np.array(a, dtype=float), np.array(b, dtype=float), np.array(c, dtype=float)
     ba = a - b
     bc = c - b
-    cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-9)
+    denom = np.linalg.norm(ba) * np.linalg.norm(bc)
+    cosine = np.dot(ba, bc) / denom if denom > 1e-9 else 0.0
     cosine = np.clip(cosine, -1.0, 1.0)
     return float(np.degrees(np.arccos(cosine)))
 

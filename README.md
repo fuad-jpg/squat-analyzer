@@ -51,7 +51,7 @@ video file
 OpenCV frame reader ───────────────────────────────────────────┐
     │                                                          │
     ▼                                                          │
-MediaPipe Pose (BlazePose, 33 landmarks)                       │
+MediaPipe Pose Landmarker (BlazePose, 33 landmarks)            │
     │  picks the more-visible body side for a side-view video  │
     ▼                                                          │
 angles.py — joint angles from 2D landmark coordinates          │
@@ -75,7 +75,7 @@ annotated video + structured report (CLI, JSON, or Streamlit UI)
 
 ```
 angles.py            Pure geometry: joint angles from 2D points
-pose_estimator.py     MediaPipe Pose wrapper: landmark extraction, side picking
+pose_estimator.py     MediaPipe PoseLandmarker wrapper: landmark extraction, side picking
 config.py              Tunable thresholds (depth, lean, rep-detection)
 metrics.py              FrameMetrics dataclass (per-frame angles/ratios)
 rep_counter.py          State machine that groups frames into reps
@@ -109,6 +109,10 @@ streamlit run app.py
 # Run the test suite
 pytest
 ```
+
+The first run of `main.py` or `app.py` downloads MediaPipe's pose landmark
+model (~9 MB) into a local `models/` folder — that's expected, one-time, and
+requires an internet connection.
 
 ## Design notes
 

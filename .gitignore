@@ -30,3 +30,6 @@ sample_videos/*
 !sample_videos/README.md
 output/*
 !output/.gitkeep
+
+# Downloaded MediaPipe model (fetched automatically on first run)
+models/

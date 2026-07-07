@@ -1,7 +1,23 @@
+import os
+import urllib.request
+
 import mediapipe as mp
 import numpy as np
 
-mp_pose = mp.solutions.pose
+# MediaPipe removed the old mp.solutions.pose API in favor of the Tasks API
+# (mediapipe>=0.10.x no longer ships mp.solutions at all). This wraps the
+# PoseLandmarker task, downloading its model file on first use.
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_full/float16/1/pose_landmarker_full.task"
+)
+_MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+_MODEL_PATH = os.path.join(_MODEL_DIR, "pose_landmarker_full.task")
 
 # Only the joints needed for side-view squat analysis.
 LANDMARK_NAMES = {
@@ -13,22 +29,47 @@ LANDMARK_NAMES = {
     "foot_index": ("LEFT_FOOT_INDEX", "RIGHT_FOOT_INDEX"),
 }
 
+# Landmark indices for the 33-point BlazePose model (stable across MediaPipe's
+# old Solutions API and the current Tasks API -- same underlying model).
+_NAME_TO_INDEX = {
+    "LEFT_SHOULDER": 11, "RIGHT_SHOULDER": 12,
+    "LEFT_HIP": 23, "RIGHT_HIP": 24,
+    "LEFT_KNEE": 25, "RIGHT_KNEE": 26,
+    "LEFT_ANKLE": 27, "RIGHT_ANKLE": 28,
+    "LEFT_HEEL": 29, "RIGHT_HEEL": 30,
+    "LEFT_FOOT_INDEX": 31, "RIGHT_FOOT_INDEX": 32,
+}
+
+
+def _ensure_model_downloaded():
+    if not os.path.exists(_MODEL_PATH):
+        os.makedirs(_MODEL_DIR, exist_ok=True)
+        print(f"Downloading pose landmark model to {_MODEL_PATH} (~9 MB, one-time)...")
+        urllib.request.urlretrieve(_MODEL_URL, _MODEL_PATH)
+
 
 class PoseEstimator:
     def __init__(self, min_detection_confidence=0.5, min_tracking_confidence=0.5):
-        self._pose = mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=1,
-            min_detection_confidence=min_detection_confidence,
+        _ensure_model_downloaded()
+        options = PoseLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=_MODEL_PATH),
+            running_mode=VisionRunningMode.VIDEO,
+            num_poses=1,
+            min_pose_detection_confidence=min_detection_confidence,
             min_tracking_confidence=min_tracking_confidence,
         )
+        self._landmarker = PoseLandmarker.create_from_options(options)
 
-    def process(self, frame_rgb):
-        """Run pose detection on one RGB frame. Returns raw MediaPipe results."""
-        return self._pose.process(frame_rgb)
+    def process(self, frame_rgb, timestamp_ms):
+        """Run pose detection on one RGB frame. `timestamp_ms` must increase
+        monotonically across calls (e.g. frame_index * 1000 / fps) -- the
+        VIDEO running mode uses it for internal tracking. Returns the raw
+        PoseLandmarkerResult."""
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+        return self._landmarker.detect_for_video(mp_image, int(timestamp_ms))
 
     def close(self):
-        self._pose.close()
+        self._landmarker.close()
 
     @staticmethod
     def get_landmark_points(results, frame_width, frame_height):
@@ -36,14 +77,14 @@ class PoseEstimator:
         if not results.pose_landmarks:
             return None
 
-        landmarks = results.pose_landmarks.landmark
+        landmarks = results.pose_landmarks[0]  # first (only) detected person
         points = {}
-        for lm in mp_pose.PoseLandmark:
-            point = landmarks[lm.value]
-            points[lm.name] = {
-                "x": point.x * frame_width,
-                "y": point.y * frame_height,
-                "visibility": point.visibility,
+        for name, index in _NAME_TO_INDEX.items():
+            lm = landmarks[index]
+            points[name] = {
+                "x": lm.x * frame_width,
+                "y": lm.y * frame_height,
+                "visibility": lm.visibility,
             }
         return points
 

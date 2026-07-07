@@ -97,7 +97,8 @@ def analyze_video(
                 break
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = estimator.process(rgb)
+            timestamp_ms = int(frame_index * (1000.0 / fps))
+            results = estimator.process(rgb, timestamp_ms)
             points = PoseEstimator.get_landmark_points(results, width, height)
 
             if points is not None:
