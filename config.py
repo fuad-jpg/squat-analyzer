@@ -12,7 +12,7 @@ MIN_VISIBILITY = 0.5
 # --- Rep detection ---------------------------------------------------------
 # Knee angle in degrees; 180 = leg fully extended.
 STANDING_KNEE_ANGLE = 160.0
-DESCENT_TRIGGER_KNEE_ANGLE = 150.0
+DESCENT_TRIGGER_KNEE_ANGLE = 90.0
 # A rep only counts if the knee angle dropped at least this far below the
 # standing baseline, so weight shifts / knee wobbles while standing aren't
 # mistaken for a rep.
@@ -29,4 +29,4 @@ EXCESSIVE_TORSO_LEAN_DEG = 45.0
 # --- Weight shifting forward / heel rise ----------------------------------
 # Normalized by thigh length (hip-to-knee pixel distance) so it holds up
 # across different camera distances and video resolutions.
-HEEL_RISE_RATIO_LIMIT = 0.08
+HEEL_RISE_RATIO_LIMIT = 0.2

@@ -3,6 +3,7 @@ import tempfile
 
 import streamlit as st
 
+from filming_guide import build_guide_image
 from video_processor import analyze_video
 
 st.set_page_config(page_title="Squat Form Analyzer", page_icon="🏋️", layout="centered")
@@ -14,6 +15,34 @@ st.write(
     "weight-shift/heel-rise issues."
 )
 
+@st.dialog("How to film your video", width="large")
+def show_filming_guide():
+    st.image(build_guide_image(), width="content")
+
+
+if st.button("📹 How should I film my video?"):
+    show_filming_guide()
+
+with st.expander("New to this? What do these terms mean?"):
+    st.markdown(
+        """
+- **Knee angle** —  The degree of bend at your knee joint. A standing leg is `180°`.
+ Reaching "parallel" (thighs level with the floor) occurs around `90°`. 
+ Going below `90°` is ideal for full muscle engagement, provided you can maintain
+ flat feet and a straight back.
+- **Torso lean** — how far your upper body tips forward, measured from
+  perfectly upright (`0°`). Some forward lean is normal in a squat; a lot of
+  it usually means the weight has shifted off your legs and onto your lower back.
+- **Heel rise** — whether your heels lift off the floor. Your feet should stay
+  flat and planted the whole rep; heels coming up is a sign of weight
+  shifting forward onto your toes, often from tight ankles.
+- **Rep** — one full squat: down and back up. The app counts a rep only once
+  your knee bends deep enough that it's clearly an intentional squat, not
+  just a wobble while standing.
+        """
+    )
+
+st.write("")
 uploaded = st.file_uploader("Upload squat video", type=["mp4", "mov", "avi", "m4v"])
 
 if uploaded is not None:
@@ -42,7 +71,11 @@ if uploaded is not None:
             )
 
         for rep in result.reps:
-            with st.expander(f"Rep {rep.rep_number} — min knee angle {rep.min_knee_angle:.0f}°", expanded=True):
+            icon = "✅" if rep.is_good_form else "⚠️"
+            with st.expander(
+                f"{icon} Rep {rep.rep_number} — min knee angle {rep.min_knee_angle:.0f}°",
+                expanded=True,
+            ):
                 for line in rep.feedback:
                     st.write(f"- {line}")
 

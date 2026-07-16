@@ -10,8 +10,9 @@ build/
 dist/
 .pytest_cache/
 
-# Streamlit
-.streamlit/
+# Streamlit local settings (but keep the committed theme/server config)
+.streamlit/*
+!.streamlit/config.toml
 
 # OS
 .DS_Store

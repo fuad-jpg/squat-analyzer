@@ -27,7 +27,7 @@ def main():
         print(f"Rep {rep.rep_number}: min knee angle {rep.min_knee_angle:.0f}°, "
               f"max torso lean {rep.max_torso_lean:.0f}°")
         for line in rep.feedback:
-            print(f"  - {line}")
+            print(f"  - {line.replace('**', '')}")
         print()
 
     if not result.reps:

@@ -4,6 +4,7 @@ import urllib.request
 import mediapipe as mp
 import numpy as np
 
+#MediaPipe wrapper for pose estimation.
 # MediaPipe removed the old mp.solutions.pose API in favor of the Tasks API
 # (mediapipe>=0.10.x no longer ships mp.solutions at all). This wraps the
 # PoseLandmarker task, downloading its model file on first use.

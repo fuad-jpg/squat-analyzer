@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 import cv2
+import imageio.v2 as imageio
 import numpy as np
 
 import config
@@ -10,6 +11,7 @@ from feedback import RepReport, evaluate_rep
 from metrics import FrameMetrics
 from pose_estimator import PoseEstimator
 from rep_counter import RepCounter
+from smoothing import JointSmoother
 
 JOINT_CONNECTIONS = [
     ("shoulder", "hip"),
@@ -31,28 +33,47 @@ class AnalysisResult:
     output_video_path: Optional[str] = None
 
 
-def _draw_overlay(frame, joints, fm: FrameMetrics, rep_count: int, last_feedback: List[str]):
+# BGR colors, chosen for contrast against skin/gym backgrounds.
+_SKELETON_COLOR = (255, 200, 30)     # vivid azure
+_JOINT_FILL_COLOR = (40, 170, 255)   # warm orange
+_JOINT_RING_COLOR = (255, 255, 255)
+_REP_TEXT_COLOR = (60, 230, 255)     # gold
+_ANGLE_TEXT_COLOR = (255, 255, 255)
+_TEXT_OUTLINE_COLOR = (0, 0, 0)
+
+
+def _put_text_with_outline(frame, text, org, color, scale=0.6, thickness=2):
+    # Draw a thick black copy first, then the real text on top, so labels
+    # stay readable against any background color behind them.
+    cv2.putText(frame, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
+                _TEXT_OUTLINE_COLOR, thickness + 3, cv2.LINE_AA)
+    cv2.putText(frame, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale,
+                color, thickness, cv2.LINE_AA)
+
+
+def _draw_overlay(frame, joints, fm: FrameMetrics, rep_count: int):
     for a, b in JOINT_CONNECTIONS:
         pa = tuple(int(v) for v in joints[a])
         pb = tuple(int(v) for v in joints[b])
-        cv2.line(frame, pa, pb, (0, 255, 0), 2)
+        cv2.line(frame, pa, pb, _SKELETON_COLOR, 3, cv2.LINE_AA)
     for x, y in joints.values():
-        cv2.circle(frame, (int(x), int(y)), 5, (0, 140, 255), -1)
+        center = (int(x), int(y))
+        cv2.circle(frame, center, 7, _JOINT_RING_COLOR, -1, cv2.LINE_AA)
+        cv2.circle(frame, center, 5, _JOINT_FILL_COLOR, -1, cv2.LINE_AA)
 
     knee_pt = tuple(int(v) for v in joints["knee"])
     hip_pt = tuple(int(v) for v in joints["hip"])
-    cv2.putText(frame, f"knee {fm.knee_angle:.0f}", (knee_pt[0] + 10, knee_pt[1]),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-    cv2.putText(frame, f"hip {fm.hip_angle:.0f}", (hip_pt[0] + 10, hip_pt[1]),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-    cv2.putText(frame, f"Reps: {rep_count}", (20, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+    _put_text_with_outline(frame, f"Knee {fm.knee_angle:.0f}",
+                            (knee_pt[0] + 12, knee_pt[1]), _ANGLE_TEXT_COLOR)
+    _put_text_with_outline(frame, f"Hip {fm.hip_angle:.0f}",
+                            (hip_pt[0] + 12, hip_pt[1]), _ANGLE_TEXT_COLOR)
 
-    if last_feedback:
-        y0 = frame.shape[0] - 20 * len(last_feedback) - 10
-        for i, line in enumerate(last_feedback):
-            cv2.putText(frame, line[:90], (20, y0 + i * 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+    # Semi-transparent badge behind the rep counter so it stays legible.
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (14, 14), (170, 56), (30, 30, 30), -1)
+    cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
+    _put_text_with_outline(frame, f"Reps: {rep_count}", (26, 44),
+                            _REP_TEXT_COLOR, scale=0.9, thickness=2)
     return frame
 
 
@@ -64,7 +85,8 @@ def analyze_video(
 ) -> AnalysisResult:
     """Run the full pipeline on a side-view squat video: pose tracking, angle
     math, rep counting, and per-rep form feedback. Optionally writes an
-    annotated copy of the video with skeleton overlay and live feedback.
+    annotated copy of the video with a skeleton overlay and rep counter
+    (form feedback itself is returned as text, not drawn on the video).
     """
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
@@ -77,18 +99,27 @@ def analyze_video(
 
     writer = None
     if output_path:
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        # OpenCV's own VideoWriter can't reliably encode H.264 on most
+        # platforms, and browsers (including Streamlit's st.video) won't
+        # play back OpenCV's usual "mp4v" codec. imageio + its bundled
+        # ffmpeg binary writes real H.264, so the output actually plays.
+        writer = imageio.get_writer(
+            output_path, fps=fps, codec="libx264", quality=8, macro_block_size=None
+        )
 
     estimator = PoseEstimator()
     counter = RepCounter()
+    smoother = JointSmoother()
 
     side = None
     standing_heel_y = None
     frame_metrics: List[FrameMetrics] = []
     reps: List[RepReport] = []
-    last_feedback: List[str] = []
     frame_index = 0
+    # Carried across frames so the overlay keeps showing the last known pose
+    # instead of flickering off on any single low-confidence/undetected frame.
+    last_joints = None
+    last_fm: Optional[FrameMetrics] = None
 
     try:
         while True:
@@ -106,7 +137,7 @@ def analyze_video(
                     side = PoseEstimator.pick_side(points)
 
                 if PoseEstimator.get_side_visibility(points, side) >= min_visibility:
-                    joints = PoseEstimator.get_side_joints(points, side)
+                    joints = smoother.smooth(PoseEstimator.get_side_joints(points, side))
 
                     k_angle = knee_angle(joints["hip"], joints["knee"], joints["ankle"])
                     h_angle = hip_angle(joints["shoulder"], joints["hip"], joints["knee"])
@@ -144,15 +175,14 @@ def analyze_video(
 
                     closed = counter.update(fm)
                     if closed is not None:
-                        report = evaluate_rep(len(reps) + 1, closed.frames)
-                        reps.append(report)
-                        last_feedback = report.feedback
+                        reps.append(evaluate_rep(len(reps) + 1, closed.frames))
 
-                    if writer is not None:
-                        frame = _draw_overlay(frame, joints, fm, len(reps), last_feedback)
+                    last_joints, last_fm = joints, fm
 
             if writer is not None:
-                writer.write(frame)
+                if last_joints is not None:
+                    frame = _draw_overlay(frame, last_joints, last_fm, len(reps))
+                writer.append_data(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
             frame_index += 1
             if progress_callback and frame_count:
@@ -165,7 +195,7 @@ def analyze_video(
     finally:
         cap.release()
         if writer is not None:
-            writer.release()
+            writer.close()
         estimator.close()
 
     return AnalysisResult(

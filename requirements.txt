@@ -3,3 +3,8 @@ mediapipe>=0.10,<0.11
 numpy>=1.24,<2
 streamlit>=1.32,<2
 pytest>=8,<9
+# Browsers only play H.264 mp4; OpenCV's own VideoWriter can't encode it on
+# most platforms, so imageio-ffmpeg (a self-contained ffmpeg binary, no
+# system install needed) is used just for the final annotated video write.
+imageio>=2.34,<3
+imageio-ffmpeg>=0.4,<1

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import config
 from rep_counter import RepCounter
 
 
@@ -21,22 +22,31 @@ def _feed(counter, angles):
     return closed
 
 
+# Built from config's own thresholds (rather than hardcoded angles) so these
+# tests stay meaningful if the thresholds get retuned later.
+_STANDING = config.STANDING_KNEE_ANGLE + 10
+_BOTTOM = config.DESCENT_TRIGGER_KNEE_ANGLE - 20
+
+
 def test_counts_one_full_rep():
-    angles = [170, 170, 160, 130, 95, 90, 100, 140, 165, 170, 170]
+    angles = [_STANDING, _STANDING, _STANDING - 10, _BOTTOM + 20, _BOTTOM,
+              _BOTTOM + 5, _BOTTOM + 20, _STANDING - 5, _STANDING, _STANDING]
     reps = _feed(RepCounter(), angles)
     assert len(reps) == 1
-    assert min(f.knee_angle for f in reps[0].frames) == 90
+    assert min(f.knee_angle for f in reps[0].frames) == _BOTTOM
 
 
-def test_ignores_small_knee_bend_as_noise():
-    # Dips below the standing baseline but not far enough to be a real squat.
-    angles = [170, 170, 148, 148, 170, 170]
+def test_ignores_bend_that_never_crosses_the_descent_trigger():
+    # Dips, but stays above DESCENT_TRIGGER_KNEE_ANGLE, so it's never even
+    # considered the start of a squat attempt.
+    shallow = config.DESCENT_TRIGGER_KNEE_ANGLE + 10
+    angles = [_STANDING, _STANDING, shallow, shallow, _STANDING, _STANDING]
     reps = _feed(RepCounter(), angles)
     assert len(reps) == 0
 
 
 def test_counts_multiple_reps():
-    one_rep = [170, 130, 90, 130, 170]
+    one_rep = [_STANDING, _BOTTOM + 20, _BOTTOM, _BOTTOM + 20, _STANDING]
     angles = one_rep + one_rep[1:]
     reps = _feed(RepCounter(), angles)
     assert len(reps) == 2
