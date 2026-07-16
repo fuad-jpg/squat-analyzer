@@ -12,7 +12,7 @@ MIN_VISIBILITY = 0.5
 # --- Rep detection ---------------------------------------------------------
 # Knee angle in degrees; 180 = leg fully extended.
 STANDING_KNEE_ANGLE = 160.0
-DESCENT_TRIGGER_KNEE_ANGLE = 90.0
+DESCENT_TRIGGER_KNEE_ANGLE = 110.0
 # A rep only counts if the knee angle dropped at least this far below the
 # standing baseline, so weight shifts / knee wobbles while standing aren't
 # mistaken for a rep.
@@ -24,7 +24,10 @@ PARALLEL_KNEE_ANGLE = 100.0
 SHALLOW_KNEE_ANGLE_MARGIN = 10.0
 
 # --- Torso lean ----------------------------------------------------------
-EXCESSIVE_TORSO_LEAN_DEG = 45.0
+# Loosened from 45: a big plate can visually overlap the shoulder landmark
+# in a side view, occasionally pulling MediaPipe's shoulder position off and
+# inflating this reading. Tune further based on your own footage.
+EXCESSIVE_TORSO_LEAN_DEG = 55.0
 
 # --- Weight shifting forward / heel rise ----------------------------------
 # Normalized by thigh length (hip-to-knee pixel distance) so it holds up

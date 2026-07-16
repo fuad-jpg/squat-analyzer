@@ -55,7 +55,10 @@ class PoseEstimator:
         options = PoseLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=_MODEL_PATH),
             running_mode=VisionRunningMode.VIDEO,
-            num_poses=1,
+            # Detect a few people, not just one -- lets get_landmark_points
+            # pick whichever is the actual lifter (largest in frame) instead
+            # of MediaPipe silently locking onto someone in the background.
+            num_poses=4,
             min_pose_detection_confidence=min_detection_confidence,
             min_tracking_confidence=min_tracking_confidence,
         )
@@ -73,12 +76,25 @@ class PoseEstimator:
         self._landmarker.close()
 
     @staticmethod
+    def _main_subject(pose_landmarks_list):
+        """When multiple people are detected, pick whichever one occupies the
+        largest area in frame (bounding box over their own landmarks). The
+        actual lifter is the main focal point and closest to the camera, so
+        they read as bigger than anyone else caught in the background."""
+        def bbox_area(landmarks):
+            xs = [lm.x for lm in landmarks]
+            ys = [lm.y for lm in landmarks]
+            return (max(xs) - min(xs)) * (max(ys) - min(ys))
+
+        return max(pose_landmarks_list, key=bbox_area)
+
+    @staticmethod
     def get_landmark_points(results, frame_width, frame_height):
         """Convert normalized landmarks to pixel coords + visibility, indexed by name."""
         if not results.pose_landmarks:
             return None
 
-        landmarks = results.pose_landmarks[0]  # first (only) detected person
+        landmarks = PoseEstimator._main_subject(results.pose_landmarks)
         points = {}
         for name, index in _NAME_TO_INDEX.items():
             lm = landmarks[index]

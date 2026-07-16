@@ -92,9 +92,12 @@ def analyze_video(
     if not cap.isOpened():
         raise FileNotFoundError(f"Could not open video: {input_path}")
 
+    # Phone videos filmed in portrait are usually stored as landscape pixels
+    # with a rotation flag telling players to display them rotated. Without
+    # this, OpenCV ignores that flag and hands back raw sideways frames.
+    cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
+
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     writer = None
@@ -126,6 +129,11 @@ def analyze_video(
             ok, frame = cap.read()
             if not ok:
                 break
+
+            # Read the actual frame's own dimensions rather than trusting
+            # cap.get(CAP_PROP_FRAME_WIDTH/HEIGHT): those reflect the raw
+            # stream, not what ORIENTATION_AUTO rotates frames into.
+            height, width = frame.shape[:2]
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             timestamp_ms = int(frame_index * (1000.0 / fps))
