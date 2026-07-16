@@ -16,9 +16,17 @@ class JointVisibilityGate:
     def filter(self, joints: dict, visibility: dict) -> dict:
         trusted = {}
         for name, pos in joints.items():
-            if visibility[name] >= self._min_visibility or name not in self._last_good:
+            if visibility[name] >= self._min_visibility:
                 trusted[name] = pos
                 self._last_good[name] = pos
-            else:
+            elif name in self._last_good:
                 trusted[name] = self._last_good[name]
+            else:
+                # Nothing trustworthy recorded yet (e.g. occluded since the
+                # very first frame) -- pass the current reading through
+                # since there's no better option, but don't cache it as
+                # "good". Caching it would anchor later frames to a bad
+                # position and cause a jump/snap once a real good reading
+                # finally arrives and overwrites it.
+                trusted[name] = pos
         return trusted

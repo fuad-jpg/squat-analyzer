@@ -20,9 +20,10 @@ _MODEL_URL = (
 _MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 _MODEL_PATH = os.path.join(_MODEL_DIR, "pose_landmarker_full.task")
 
-# Only the joints needed for side-view squat analysis. "nose" has no
-# left/right distinction (it's a midline point) -- it's paired with itself
-# so it flows through the same per-side plumbing as everything else below.
+# Only the joints needed for side-view squat analysis. "ear" (unlike nose)
+# has a real left/right landmark pair, and sits roughly in line with the
+# shoulder-hip axis in a neutral posture -- a better fallback anchor for
+# that line than the nose, which juts forward/back with head tilt.
 LANDMARK_NAMES = {
     "shoulder": ("LEFT_SHOULDER", "RIGHT_SHOULDER"),
     "hip": ("LEFT_HIP", "RIGHT_HIP"),
@@ -30,7 +31,7 @@ LANDMARK_NAMES = {
     "ankle": ("LEFT_ANKLE", "RIGHT_ANKLE"),
     "heel": ("LEFT_HEEL", "RIGHT_HEEL"),
     "foot_index": ("LEFT_FOOT_INDEX", "RIGHT_FOOT_INDEX"),
-    "nose": ("NOSE", "NOSE"),
+    "ear": ("LEFT_EAR", "RIGHT_EAR"),
 }
 
 # Landmark indices for the 33-point BlazePose model (stable across MediaPipe's
@@ -42,7 +43,7 @@ _NAME_TO_INDEX = {
     "LEFT_ANKLE": 27, "RIGHT_ANKLE": 28,
     "LEFT_HEEL": 29, "RIGHT_HEEL": 30,
     "LEFT_FOOT_INDEX": 31, "RIGHT_FOOT_INDEX": 32,
-    "NOSE": 0,
+    "LEFT_EAR": 7, "RIGHT_EAR": 8,
 }
 
 
@@ -151,19 +152,21 @@ class PoseEstimator:
         return vis
 
     @staticmethod
-    def apply_nose_fallback_for_shoulder(joints, visibility, min_visibility):
+    def apply_ear_fallback_for_shoulder(joints, visibility, min_visibility):
         """If the shoulder's own visibility is too low to trust but the
-        nose's isn't, use the nose position in the shoulder's place for this
+        ear's isn't, use the ear position in the shoulder's place for this
         frame. A barbell plate sits at bar height and can cover the shoulder
-        while sitting well below the head -- the nose is usually still
-        clearly visible when the shoulder isn't. Returns new dicts; doesn't
-        mutate the inputs.
+        while sitting well below the head -- the ear is usually still
+        clearly visible when the shoulder isn't, and (unlike the nose) it
+        sits roughly in line with the shoulder-hip axis in neutral posture,
+        so it doesn't skew the lean/angle math as much. Returns new dicts;
+        doesn't mutate the inputs.
         """
         joints = dict(joints)
         visibility = dict(visibility)
         shoulder_vis = visibility.get("shoulder", 1.0)
-        nose_vis = visibility.get("nose", 0.0)
-        if shoulder_vis < min_visibility and nose_vis >= min_visibility:
-            joints["shoulder"] = joints["nose"]
-            visibility["shoulder"] = nose_vis
+        ear_vis = visibility.get("ear", 0.0)
+        if shoulder_vis < min_visibility and ear_vis >= min_visibility:
+            joints["shoulder"] = joints["ear"]
+            visibility["shoulder"] = ear_vis
         return joints, visibility

@@ -29,15 +29,33 @@ def test_heel_rise_uses_this_reps_own_starting_position():
     assert report.max_heel_rise_ratio == 0.0
 
 
-def test_heel_rise_detects_a_real_lift_within_the_rep():
+def test_heel_rise_detects_a_sustained_real_lift_within_the_rep():
     frames = [
-        _frame(0, 130, heel_y=500.0),
-        _frame(1, 100, heel_y=480.0),  # smaller y = higher on screen = heel lifting
-        _frame(2, 90, heel_y=470.0),
-        _frame(3, 130, heel_y=500.0),
+        _frame(0, 140, heel_y=500.0),
+        _frame(1, 120, heel_y=480.0),
+        _frame(2, 100, heel_y=470.0),
+        _frame(3, 95, heel_y=465.0),
+        _frame(4, 100, heel_y=475.0),
+        _frame(5, 120, heel_y=490.0),
+        _frame(6, 140, heel_y=500.0),
     ]
     report = evaluate_rep(1, frames)
     assert report.max_heel_rise_ratio > 0.0
+
+
+def test_heel_rise_ignores_a_single_frame_noise_spike():
+    # A single bad frame (e.g. MediaPipe briefly misjudging the heel where a
+    # dark shoe blends into a dark floor) shouldn't count as a real lift --
+    # only a rise sustained across several consecutive frames should.
+    frames = [
+        _frame(0, 140, heel_y=500.0),
+        _frame(1, 120, heel_y=500.0),
+        _frame(2, 100, heel_y=380.0),  # one wildly-off frame, then right back
+        _frame(3, 120, heel_y=500.0),
+        _frame(4, 140, heel_y=500.0),
+    ]
+    report = evaluate_rep(1, frames)
+    assert report.max_heel_rise_ratio == 0.0
 
 
 def test_stance_shift_between_reps_does_not_cause_a_false_heel_rise():

@@ -4,6 +4,20 @@ from typing import List
 import config
 
 
+def _max_sustained(values, window=3):
+    """Max value that holds for at least `window` consecutive samples.
+
+    Filters out a single- or two-frame spike (e.g. MediaPipe momentarily
+    misjudging the heel's position where a shoe blends into the floor)
+    while still catching a genuine change: a real heel lift typically
+    holds for several consecutive frames, not just one.
+    """
+    values = list(values)
+    if len(values) < window:
+        return min(values) if values else 0.0
+    return max(min(values[i:i + window]) for i in range(len(values) - window + 1))
+
+
 @dataclass
 class RepReport:
     rep_number: int
@@ -37,9 +51,10 @@ def evaluate_rep(rep_number: int, frames) -> RepReport:
     # frames[0] is right as this specific rep starts descending -- the knee
     # has only just crossed the descent trigger, so the heel is still flat.
     standing_heel_y = frames[0].heel_y
-    max_heel_rise = max(
+    heel_rise_ratios = [
         max(0.0, (standing_heel_y - f.heel_y) / f.thigh_length) for f in frames
-    )
+    ]
+    max_heel_rise = _max_sustained(heel_rise_ratios)
 
     fb = []
 

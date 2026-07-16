@@ -28,10 +28,28 @@ def test_holds_a_single_occluded_joint_at_its_last_good_position():
     assert trusted == recovered_frame
 
 
-def test_trusts_a_joint_seen_for_the_first_time_regardless_of_visibility():
+def test_passes_through_but_does_not_cache_a_bad_reading_with_no_prior_good_data():
     # No prior "last good" position exists yet, so there's nothing to hold --
-    # the first reading has to be trusted even if it's low-confidence.
+    # the current reading has to be used even if it's low-confidence, since
+    # there's no better option. But it must NOT get cached as trustworthy:
+    # doing that anchors later frames to a bad position and then "snaps" to
+    # the real one once a genuinely good reading finally arrives -- this was
+    # a real bug (a plate covering the hip during unracking, right at the
+    # start of a video, produced a jump big enough to spuriously trip rep
+    # detection).
     gate = JointVisibilityGate(min_visibility=0.5)
-    frame = {"hip": (100.0, 200.0)}
-    trusted = gate.filter(frame, {"hip": 0.1})
-    assert trusted == frame
+
+    bad_frame = {"hip": (400.0, 50.0)}
+    for _ in range(5):
+        trusted = gate.filter(bad_frame, {"hip": 0.1})
+        assert trusted == bad_frame  # passed through every time, never held
+
+    # A genuinely good reading arrives -- it should be adopted immediately,
+    # not compared against some stale cached "last good" from the bad data.
+    good_frame = {"hip": (105.0, 202.0)}
+    trusted = gate.filter(good_frame, {"hip": 0.9})
+    assert trusted == good_frame
+
+    # And it's NOW cached: a subsequent bad frame holds at this good value.
+    trusted = gate.filter(bad_frame, {"hip": 0.1})
+    assert trusted == good_frame

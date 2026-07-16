@@ -39,7 +39,7 @@ def detect_plate(frame_bgr):
     return float(cx), float(cy), float(r)
 
 
-def suppress_joints_inside_plate(joints, visibility, plate, exempt=("nose",)):
+def suppress_joints_inside_plate(joints, visibility, plate, exempt=("ear",)):
     """Zero out the visibility of any joint whose reported position falls
     inside the detected plate's circle, `exempt` joints aside. MediaPipe can
     report a confidently-wrong position for a landmark the plate is
@@ -57,3 +57,39 @@ def suppress_joints_inside_plate(joints, visibility, plate, exempt=("nose",)):
         if math.hypot(x - cx, y - cy) <= r:
             visibility[name] = 0.0
     return visibility
+
+
+class PlateHipEstimator:
+    """Estimates the hip's position from the detected plate when the hip
+    landmark itself is suppressed (occluded by that same plate).
+
+    Learns a running (dx, dy) offset between the plate's center and the
+    hip's position from whichever frame most recently had both a detected
+    plate and a trusted hip reading, then reapplies that offset to the
+    plate's CURRENT position while the hip is occluded. This tracks the
+    lifter's ongoing motion via the plate (which moves with them) instead
+    of freezing at a stale snapshot the way a plain hold-last-good approach
+    would -- important since occlusion often lasts through a large chunk of
+    the descent/ascent, not just one or two frames.
+    """
+
+    def __init__(self):
+        self._offset = None  # (dx, dy) = hip_position - plate_center
+
+    def update_and_estimate(self, joints, visibility, plate):
+        if plate is None:
+            return dict(joints), dict(visibility)
+
+        joints = dict(joints)
+        visibility = dict(visibility)
+        cx, cy, _ = plate
+
+        if visibility.get("hip", 0.0) > 0.0:
+            hx, hy = joints["hip"]
+            self._offset = (hx - cx, hy - cy)
+        elif self._offset is not None:
+            dx, dy = self._offset
+            joints["hip"] = (cx + dx, cy + dy)
+            visibility["hip"] = 1.0
+
+        return joints, visibility

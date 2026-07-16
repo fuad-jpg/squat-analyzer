@@ -9,14 +9,14 @@ import config
 from angles import facing_direction, hip_angle, knee_angle, torso_lean_from_vertical
 from feedback import RepReport, evaluate_rep
 from metrics import FrameMetrics
-from plate_detector import detect_plate, suppress_joints_inside_plate
+from plate_detector import PlateHipEstimator, detect_plate, suppress_joints_inside_plate
 from pose_estimator import PoseEstimator
 from rep_counter import RepCounter
 from smoothing import JointSmoother
 from visibility_gate import JointVisibilityGate
 
 JOINT_CONNECTIONS = [
-    ("nose", "shoulder"),
+    ("ear", "shoulder"),
     ("shoulder", "hip"),
     ("hip", "knee"),
     ("knee", "ankle"),
@@ -117,6 +117,7 @@ def analyze_video(
     counter = RepCounter()
     smoother = JointSmoother()
     visibility_gate = JointVisibilityGate(min_visibility)
+    plate_hip_estimator = PlateHipEstimator()
 
     side = None
     frame_metrics: List[FrameMetrics] = []
@@ -159,8 +160,11 @@ def analyze_video(
                     joint_visibility = suppress_joints_inside_plate(
                         raw_joints, joint_visibility, plate
                     )
+                    raw_joints, joint_visibility = plate_hip_estimator.update_and_estimate(
+                        raw_joints, joint_visibility, plate
+                    )
 
-                    raw_joints, joint_visibility = PoseEstimator.apply_nose_fallback_for_shoulder(
+                    raw_joints, joint_visibility = PoseEstimator.apply_ear_fallback_for_shoulder(
                         raw_joints, joint_visibility, min_visibility
                     )
                     trusted_joints = visibility_gate.filter(raw_joints, joint_visibility)
