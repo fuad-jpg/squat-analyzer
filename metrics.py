@@ -10,7 +10,12 @@ class FrameMetrics:
     knee_angle: float
     hip_angle: float
     torso_lean: float
-    # Ratios below are normalized by thigh length (hip-to-knee pixel
-    # distance) so they hold up across camera distances/resolutions.
+    # Normalized by thigh length (hip-to-knee pixel distance) so it holds up
+    # across camera distances/resolutions.
     knee_over_toe_ratio: float
-    heel_rise_ratio: float
+    # Raw heel position + the same normalizing ruler, kept per-frame rather
+    # than pre-reduced to a ratio: heel rise needs a "heel on the ground"
+    # reference, and that has to be established locally per rep (see
+    # feedback.evaluate_rep), not once globally for the whole video.
+    heel_y: float
+    thigh_length: float

@@ -2,6 +2,11 @@ opencv-python>=4.9,<5
 mediapipe>=0.10,<0.11
 numpy>=1.24,<2
 streamlit>=1.32,<2
+# Already installed transitively via streamlit, but app.py imports it
+# directly now (rep markers on the knee-angle chart), so it's a real
+# dependency of this project, not just an implementation detail of streamlit.
+altair>=5,<7
+pandas>=2,<4
 pytest>=8,<9
 # Browsers only play H.264 mp4; OpenCV's own VideoWriter can't encode it on
 # most platforms, so imageio-ffmpeg (a self-contained ffmpeg binary, no

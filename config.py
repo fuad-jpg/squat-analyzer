@@ -12,11 +12,12 @@ MIN_VISIBILITY = 0.5
 # --- Rep detection ---------------------------------------------------------
 # Knee angle in degrees; 180 = leg fully extended.
 STANDING_KNEE_ANGLE = 160.0
-DESCENT_TRIGGER_KNEE_ANGLE = 110.0
+DESCENT_TRIGGER_KNEE_ANGLE = 135.0
 # A rep only counts if the knee angle dropped at least this far below the
 # standing baseline, so weight shifts / knee wobbles while standing aren't
-# mistaken for a rep.
-MIN_KNEE_DROP_FOR_VALID_REP = 25.0
+# mistaken for a rep. With STANDING_KNEE_ANGLE=160, this requires the knee
+# to reach ~95 deg (comfortably below parallel) before a rep is valid.
+MIN_KNEE_DROP_FOR_VALID_REP = 55.0
 
 # --- Depth -------------------------------------------------------------
 # Approximate knee angle when thighs are parallel to the floor.

@@ -1,6 +1,8 @@
 import os
 import tempfile
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 
 from filming_guide import build_guide_image
@@ -95,10 +97,41 @@ if uploaded is not None:
             for line in rep.feedback:
                 st.write(f"- {line}")
 
-    knee_angles = [fm.knee_angle for fm in result.frame_metrics]
-    if knee_angles:
+    if result.frame_metrics:
+        chart_df = pd.DataFrame({
+            "Time (s)": [fm.time_s for fm in result.frame_metrics],
+            "Knee angle (deg)": [fm.knee_angle for fm in result.frame_metrics],
+        })
+        line = alt.Chart(chart_df).mark_line().encode(
+            x=alt.X("Time (s)", title="Time (s)"),
+            y=alt.Y("Knee angle (deg)", title="Knee angle (deg)"),
+        )
+        chart = line
+
+        # Mark the bottom of each counted rep with a circle, so it's easy to
+        # see exactly where in the video each rep the app detected lines up.
+        by_frame = {fm.frame_index: fm for fm in result.frame_metrics}
+        rep_points = [
+            {
+                "Time (s)": by_frame[rep.bottom_frame].time_s,
+                "Knee angle (deg)": by_frame[rep.bottom_frame].knee_angle,
+                "Rep": f"Rep {rep.rep_number}",
+            }
+            for rep in result.reps
+            if rep.bottom_frame in by_frame
+        ]
+        if rep_points:
+            markers = alt.Chart(pd.DataFrame(rep_points)).mark_circle(
+                size=140, color="#FFD54A", stroke="#8A6D00", strokeWidth=1.5,
+            ).encode(
+                x="Time (s)",
+                y="Knee angle (deg)",
+                tooltip=["Rep", "Time (s)", "Knee angle (deg)"],
+            )
+            chart = line + markers
+
         st.subheader("Knee angle over time")
-        st.line_chart(knee_angles)
+        st.altair_chart(chart, width="stretch")
 
 st.divider()
 st.caption(

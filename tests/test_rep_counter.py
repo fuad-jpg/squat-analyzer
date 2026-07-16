@@ -23,9 +23,16 @@ def _feed(counter, angles):
 
 
 # Built from config's own thresholds (rather than hardcoded angles) so these
-# tests stay meaningful if the thresholds get retuned later.
+# tests stay meaningful if the thresholds get retuned later. _BOTTOM has to
+# clear two separate bars: it must cross the descent trigger (to start being
+# tracked as a rep attempt at all) AND drop far enough below _STANDING to
+# satisfy MIN_KNEE_DROP_FOR_VALID_REP (to actually count once it's over) --
+# so take whichever constraint is currently stricter, with margin to spare.
 _STANDING = config.STANDING_KNEE_ANGLE + 10
-_BOTTOM = config.DESCENT_TRIGGER_KNEE_ANGLE - 20
+_BOTTOM = min(
+    config.DESCENT_TRIGGER_KNEE_ANGLE - 20,
+    _STANDING - config.MIN_KNEE_DROP_FOR_VALID_REP - 20,
+)
 
 
 def test_counts_one_full_rep():

@@ -115,7 +115,6 @@ def analyze_video(
     smoother = JointSmoother()
 
     side = None
-    standing_heel_y = None
     frame_metrics: List[FrameMetrics] = []
     reps: List[RepReport] = []
     frame_index = 0
@@ -159,17 +158,6 @@ def analyze_video(
                         (joints["knee"][0] - joints["foot_index"][0]) * facing / thigh_length
                     )
 
-                    if k_angle >= config.STANDING_KNEE_ANGLE:
-                        standing_heel_y = (
-                            joints["heel"][1] if standing_heel_y is None
-                            else max(standing_heel_y, joints["heel"][1])
-                        )
-                    if standing_heel_y is None:
-                        standing_heel_y = joints["heel"][1]
-                    heel_rise_ratio = max(
-                        0.0, (standing_heel_y - joints["heel"][1]) / thigh_length
-                    )
-
                     fm = FrameMetrics(
                         frame_index=frame_index,
                         time_s=frame_index / fps,
@@ -177,7 +165,8 @@ def analyze_video(
                         hip_angle=h_angle,
                         torso_lean=lean,
                         knee_over_toe_ratio=knee_over_toe_ratio,
-                        heel_rise_ratio=heel_rise_ratio,
+                        heel_y=joints["heel"][1],
+                        thigh_length=thigh_length,
                     )
                     frame_metrics.append(fm)
 

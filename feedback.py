@@ -29,7 +29,17 @@ def evaluate_rep(rep_number: int, frames) -> RepReport:
     bottom = min(frames, key=lambda f: f.knee_angle)
     max_lean = max(f.torso_lean for f in frames)
     max_over_toe = max(f.knee_over_toe_ratio for f in frames)
-    max_heel_rise = max(f.heel_rise_ratio for f in frames)
+
+    # "Heel on the ground" has to be a local reference, not one baseline
+    # shared across the whole video: even a small shift in where the lifter
+    # is standing between reps (re-racking, adjusting stance) moves the
+    # absolute pixel position of "ground" without the heel actually lifting.
+    # frames[0] is right as this specific rep starts descending -- the knee
+    # has only just crossed the descent trigger, so the heel is still flat.
+    standing_heel_y = frames[0].heel_y
+    max_heel_rise = max(
+        max(0.0, (standing_heel_y - f.heel_y) / f.thigh_length) for f in frames
+    )
 
     fb = []
 
