@@ -15,6 +15,7 @@ from smoothing import JointSmoother
 from visibility_gate import JointVisibilityGate
 
 JOINT_CONNECTIONS = [
+    ("nose", "shoulder"),
     ("shoulder", "hip"),
     ("hip", "knee"),
     ("knee", "ankle"),
@@ -148,6 +149,9 @@ def analyze_video(
                 if PoseEstimator.get_side_visibility(points, side) >= min_visibility:
                     raw_joints = PoseEstimator.get_side_joints(points, side)
                     joint_visibility = PoseEstimator.get_side_joint_visibility(points, side)
+                    raw_joints, joint_visibility = PoseEstimator.apply_nose_fallback_for_shoulder(
+                        raw_joints, joint_visibility, min_visibility
+                    )
                     trusted_joints = visibility_gate.filter(raw_joints, joint_visibility)
                     joints = smoother.smooth(trusted_joints)
 
