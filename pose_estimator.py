@@ -129,3 +129,19 @@ class PoseEstimator:
             p = points[name]
             joints[joint_name] = (p["x"], p["y"])
         return joints
+
+    @staticmethod
+    def get_side_joint_visibility(points, side):
+        """Return {joint_name: visibility} for the chosen side.
+
+        Unlike get_side_visibility (one number averaged across all 6 joints),
+        this exposes each joint individually -- needed because a plate or
+        prop covering just the hip or shoulder can pull that one landmark far
+        off while the other 5 stay perfectly visible, keeping the average
+        comfortably above threshold and hiding the problem.
+        """
+        vis = {}
+        for joint_name, (left_name, right_name) in LANDMARK_NAMES.items():
+            name = left_name if side == "LEFT" else right_name
+            vis[joint_name] = points[name]["visibility"]
+        return vis
