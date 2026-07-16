@@ -9,6 +9,7 @@ import config
 from angles import facing_direction, hip_angle, knee_angle, torso_lean_from_vertical
 from feedback import RepReport, evaluate_rep
 from metrics import FrameMetrics
+from plate_detector import detect_plate, suppress_joints_inside_plate
 from pose_estimator import PoseEstimator
 from rep_counter import RepCounter
 from smoothing import JointSmoother
@@ -149,6 +150,16 @@ def analyze_video(
                 if PoseEstimator.get_side_visibility(points, side) >= min_visibility:
                     raw_joints = PoseEstimator.get_side_joints(points, side)
                     joint_visibility = PoseEstimator.get_side_joint_visibility(points, side)
+
+                    # MediaPipe can report a landmark it's covered by a plate
+                    # as confidently visible anyway -- this catches that with
+                    # an independent geometric check instead of trusting its
+                    # own confidence score.
+                    plate = detect_plate(frame)
+                    joint_visibility = suppress_joints_inside_plate(
+                        raw_joints, joint_visibility, plate
+                    )
+
                     raw_joints, joint_visibility = PoseEstimator.apply_nose_fallback_for_shoulder(
                         raw_joints, joint_visibility, min_visibility
                     )
