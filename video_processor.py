@@ -12,7 +12,6 @@ from metrics import FrameMetrics
 from pose_estimator import PoseEstimator
 from rep_counter import RepCounter
 from smoothing import JointSmoother
-from visibility_gate import JointVisibilityGate
 
 JOINT_CONNECTIONS = [
     ("ear", "shoulder"),
@@ -115,7 +114,6 @@ def analyze_video(
     estimator = PoseEstimator()
     counter = RepCounter(fps=fps)
     smoother = JointSmoother()
-    visibility_gate = JointVisibilityGate(min_visibility)
 
     side = None
     frame_metrics: List[FrameMetrics] = []
@@ -153,8 +151,7 @@ def analyze_video(
                     raw_joints, joint_visibility = PoseEstimator.apply_ear_fallback_for_shoulder(
                         raw_joints, joint_visibility, min_visibility
                     )
-                    trusted_joints = visibility_gate.filter(raw_joints, joint_visibility)
-                    joints = smoother.smooth(trusted_joints)
+                    joints = smoother.smooth(raw_joints)
 
                     k_angle = knee_angle(joints["hip"], joints["knee"], joints["ankle"])
                     h_angle = hip_angle(joints["shoulder"], joints["hip"], joints["knee"])
