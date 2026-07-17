@@ -133,7 +133,10 @@ reviewing this as a portfolio project):
 - **Hysteresis, not a single threshold, for rep counting.** Using separate
   "enter squat" and "return to standing" thresholds (with a minimum
   knee-angle drop to count as a real rep) avoids miscounting a knee wobble
-  or weight shift as a rep.
+  or weight shift as a rep. A descent also only counts as a rep attempt if
+  the knee angle held near full extension for a minimum duration right
+  beforehand (`MIN_STANDING_DURATION_S`) -- otherwise a video that opens
+  mid-motion, or a quick bend while unracking, could get treated as a rep.
 
 ## Limitations (honest, current state)
 

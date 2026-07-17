@@ -114,7 +114,7 @@ def analyze_video(
         )
 
     estimator = PoseEstimator()
-    counter = RepCounter()
+    counter = RepCounter(fps=fps)
     smoother = JointSmoother()
     visibility_gate = JointVisibilityGate(min_visibility)
     plate_hip_estimator = PlateHipEstimator()

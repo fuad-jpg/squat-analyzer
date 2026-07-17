@@ -18,6 +18,12 @@ DESCENT_TRIGGER_KNEE_ANGLE = 135.0
 # mistaken for a rep. With STANDING_KNEE_ANGLE=160, this requires the knee
 # to reach ~95 deg (comfortably below parallel) before a rep is valid.
 MIN_KNEE_DROP_FOR_VALID_REP = 55.0
+# The knee angle must hold at/above STANDING_KNEE_ANGLE for at least this
+# long before a subsequent descent is allowed to start a valid rep attempt.
+# Rules out a video that opens mid-motion, or a quick knee bend (e.g. while
+# unracking) that happens to cross the descent trigger without the lifter
+# ever having actually stood still first.
+MIN_STANDING_DURATION_S = 0.3
 
 # --- Depth -------------------------------------------------------------
 # Approximate knee angle when thighs are parallel to the floor.
