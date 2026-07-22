@@ -53,8 +53,14 @@ class RepCounter:
             if angle >= STANDING_KNEE_ANGLE:
                 self._standing_knee_angle = max(self._standing_knee_angle, angle)
                 self._consecutive_standing_frames += 1
-            else:
-                self._consecutive_standing_frames = 0
+            # Otherwise leave the streak as-is (don't reset it): a real
+            # descent passes gradually through the gap between
+            # DESCENT_TRIGGER_KNEE_ANGLE and STANDING_KNEE_ANGLE over many
+            # frames, and resetting here would always zero the streak out
+            # before the entry check below ever sees it -- which used to
+            # make it impossible for ANY descent to pass this check,
+            # regardless of MIN_STANDING_DURATION_S. It only needs to reset
+            # when a rep actually starts (below) or closes.
 
             if (angle < DESCENT_TRIGGER_KNEE_ANGLE
                     and standing_streak_before_this_frame >= self._min_standing_frames):

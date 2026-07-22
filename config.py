@@ -16,7 +16,7 @@ DESCENT_TRIGGER_KNEE_ANGLE = 135.0
 # A rep only counts if the knee angle dropped at least this far below the
 # standing baseline, so weight shifts / knee wobbles while standing aren't
 # mistaken for a rep. With STANDING_KNEE_ANGLE=160, this requires the knee
-# to reach ~95 deg (comfortably below parallel) before a rep is valid.
+# to reach ~105 deg before a rep is valid.
 MIN_KNEE_DROP_FOR_VALID_REP = 55.0
 # The knee angle must hold at/above STANDING_KNEE_ANGLE for at least this
 # long before a subsequent descent is allowed to start a valid rep attempt.
