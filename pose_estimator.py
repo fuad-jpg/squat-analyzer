@@ -13,12 +13,19 @@ PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
+# "heavy" (not "full"): tested against real footage with sustained
+# hip/heel misdetections in low-contrast conditions (shadowed shoes, a
+# plate covering the hip) -- heavy cut the worst sustained bad stretch from
+# 19 consecutive frames down to 9, and eliminated it entirely for several
+# other joints. Costs ~2.3x the inference time per frame and a ~31MB
+# download (vs ~9MB) instead of "full"'s, which is fine for batch analysis
+# but worth knowing if this ever needs to run somewhere more CPU-limited.
 _MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
-    "pose_landmarker_full/float16/1/pose_landmarker_full.task"
+    "pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
 )
 _MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-_MODEL_PATH = os.path.join(_MODEL_DIR, "pose_landmarker_full.task")
+_MODEL_PATH = os.path.join(_MODEL_DIR, "pose_landmarker_heavy.task")
 
 # Only the joints needed for side-view squat analysis. "ear" (unlike nose)
 # has a real left/right landmark pair, and sits roughly in line with the
